@@ -1,0 +1,10 @@
+.env
+.venv
+
+uploads
+.uploads
+
+# Local dev storage stuff
+*.json
+
+__pycache__
