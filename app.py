@@ -138,6 +138,7 @@ def trigger_email_agent():
         name = contact['name']
         email = contact['email']
         entity = contact['entity']
+
         run_email_agent(
             name,
             email,

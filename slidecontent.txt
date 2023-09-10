@@ -1,0 +1,67 @@
+#Title: Elysium OS - Empowering Developers to Build Secure, Decentralized AI
+
+#Slide: 1
+#Header: Table of Contents
+#Content: 
+1. The Problem
+2. Elysium's Solution
+3. Our Offerings
+4. Target Customer - Developers
+5. Capital Raise
+
+#Slide: 2
+#Header: The Problem
+#Content: 
+1. Isolated AI Agents
+2. Fragmentation Hinders AI Adoption
+3. Lack of Unity
+4. Operational Inefficiency
+5. Limited Cross-Compatibility
+6. Barrier to Entry
+7. Security Concerns
+
+#Slide: 3
+#Header: Elysium's Solution
+#Content: 
+1. Seamless User Experience
+2. Dynamic Ecosystem Integration
+3. Unified AI Network
+4. Secure and Trustworthy Platform
+
+#Slide: 4
+#Header: Our Offerings
+#Content: 
+1. Elysium OS - AI Butler or Chief of Staff
+2. 24/7 Access and Various Platforms
+3. Unified Portal for Managing AI Agents
+4. Customization and Powerful Capabilities
+5. Automation Station - Central Hub for AI Agents
+
+#Slide: 5
+#Header: Target Customer - Developers
+#Content: 
+1. Shared Problem We Solve
+2. Elysium as a Value-Added Catalyst
+3. Intuitive Entry Point via Elysium OS
+4. Platforming AI Agents in One Place
+5. Transactions via Automation Station
+
+#Slide: 6
+#Header: Capital Raise
+#Content: 
+1. Raising $3,500,000 in Seed Round
+2. Purpose of Fundraising
+3. Significant Hirings
+4. Growth and Scaling
+5. Development of the Platform
+
+#Slide: 7
+#Header: Summary
+#Content: 
+- Elysium OS empowers developers to build secure, decentralized AI.
+- Seamless user experience and dynamic ecosystem integration.
+- Unified portal for managing AI agents and robust customization.
+- Targeted towards developers and solves shared problems.
+- Capital raise to support growth, development, and hirings.
+
+#Slide: END
