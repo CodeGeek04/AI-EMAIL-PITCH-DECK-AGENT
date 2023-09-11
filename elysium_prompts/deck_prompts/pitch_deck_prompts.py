@@ -37,8 +37,14 @@ Example! - Stick to this formatting exactly!
 #Slide: END"""
 
 personalized_pitch_deck_prompt = """
-Write a presentation/powerpoint about the {topic}.
-Make the presenation personalized to {recipient_name}. here is some information about them delimited by <l> tags:
+Write a presentation/powerpoint about this company based on its description delimited by <d> tags:
+Description: 
+<d>
+{topic}
+<d>
+
+Make the presenation personalized to {recipient_name}. Address them by name on the first slide with some sort of greeting. Also try to draw connections between their firm's investments, thesis, etc and our company.
+Here is some information about them delimited by <l> tags:
 <l>
 The Investor details are:
 - Name: {recipient_name}
@@ -65,8 +71,8 @@ Example! - Stick to this formatting exactly!
 ...
 
 #Slide: 2
-#Header: TITLE OF SLIDE
-#Content: CONTENT OF THE SLIDE
+#Header: GREETINGS!
+#Content: GREET {recipient_name} with a personalized message
 
 #Slide: 3
 #Header: TITLE OF SLIDE
@@ -77,6 +83,10 @@ Example! - Stick to this formatting exactly!
 #Content: CONTENT OF THE SLIDE
 
 #Slide: 5
+#Header: TITLE OF SLIDE
+#Content: CONTENT OF THE SLIDE
+
+#Slide: 6
 #Headers: summary
 #Content: CONTENT OF THE SUMMARY
 
