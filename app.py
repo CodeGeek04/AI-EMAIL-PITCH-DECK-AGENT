@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, session, url_for
+from flask import Flask, redirect, request, session, url_for, jsonify
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -14,13 +14,7 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 app = Flask(__name__)
 app.secret_key = 'some_secret_key'
 
-CLIENT_ID = '570870761294-7l7cfq9c2ik4j1054rss77rqekvgfv8u.apps.googleusercontent.com'
-CLIENT_SECRET = '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'
-REDIRECT_URI = 'http://localhost:8080/callback'
-AUTH_URI = 'https://accounts.google.com/o/oauth2/auth'
-TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
-USER_INFO = 'https://www.googleapis.com/userinfo/v2/me'
-SCOPE = ['https://mail.google.com/']
+
 
 TOKEN_DB_PATH = 'token_db.json'
 
@@ -115,6 +109,7 @@ def upload():
 @app.route('/trigger-email-agent', methods=['POST'])
 def trigger_email_agent():
     from agents.gmail_agent import run_email_agent
+    from agents.gmail_agent_v2 import run_email_agent_v2
     file = request.files['csv']
 
     # Process the provided CSV file
@@ -138,12 +133,55 @@ def trigger_email_agent():
         name = contact['name']
         email = contact['email']
         entity = contact['entity']
-        run_email_agent(
-            name,
-            email,
-            entity
+        website = contact['website'] 
+        print('contact', contact)
+        run_email_agent_v2(
+            name=name,
+            email=email,
+            entity=entity,
+            sent_from="Michael",
+            entity_website=website
         )
-    return "success"
+        
+    return jsonify({"status": "success", "message": "Emailer messaged successfully"})
+
+
+@app.route('/trigger-scheduler',methods=['POST'])
+def trigger_scheduler():
+    from agents.scheduler import run_scheduler_agent
+    messages = request.json.get('messages', [])
+    response = run_scheduler_agent(messages=messages)
+    return jsonify({"status": "success", "message": "Scheduler triggered successfully"})
+
+
+
+@app.route('/update_messages', methods=["POST"])
+def update_messages():
+    from db.update_messages import update_messages
+    messages = request.json.get('messages', [])
+    response = update_messages(messages=messages)
+    return jsonify({"status": "success", "message": "Messages updated successfully"})
+
+@app.route('/process_scheduled_messages', methods=['POST'])
+def process_scheduled_messages():
+    from agents.scheduler import process_scheduler_messages
+
+    data = request.get_json()
+    messages = data.get('messages', [])
+
+    # Call your processing function
+    process_scheduler_messages(messages)
+
+    return jsonify({"message": "Processing completed successfully"}), 200
+
+
+CLIENT_ID = os.getenv('EMAIL_ASSISTANT_CLIENT_ID')
+CLIENT_SECRET = os.getenv('EMAIL_ASSISTANT_CLIENT_SECRET')
+REDIRECT_URIS = ['http://localhost:8080/callback','http://localhost:8080']
+AUTH_URI = 'https://accounts.google.com/o/oauth2/auth'
+TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
+USER_INFO = 'https://www.googleapis.com/userinfo/v2/me'
+SCOPE = ['https://mail.google.com/', 'https://www.googleapis.com/auth/calendar']
 
 @app.route('/login')
 def login():
@@ -154,20 +192,24 @@ def login():
                 "client_secret": CLIENT_SECRET,
                 "auth_uri": AUTH_URI,
                 "token_uri": TOKEN_URI,
-                "redirect_uris": [REDIRECT_URI],
+                "redirect_uris": REDIRECT_URIS,
             }
         }, scopes=SCOPE
     )
-    flow.redirect_uri = REDIRECT_URI
+    flow.redirect_uri = REDIRECT_URIS[0]
     authorization_url, state = flow.authorization_url(
         access_type='offline',
-        include_granted_scopes='true'
+        include_granted_scopes='true',
+        prompt="consent"
     )
     session['state'] = state
     return redirect(authorization_url)
 
 @app.route('/callback')
 def callback():
+    from db.utils import (
+        save_token_to_firestore
+    )
     state = session['state']
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         {
@@ -176,14 +218,15 @@ def callback():
                 "client_secret": CLIENT_SECRET,
                 "auth_uri": AUTH_URI,
                 "token_uri": TOKEN_URI,
-                "redirect_uris": [REDIRECT_URI],
+                "redirect_uris": REDIRECT_URIS,
             }
         }, scopes=SCOPE, state=state
     )
-    flow.redirect_uri = REDIRECT_URI
+    flow.redirect_uri = REDIRECT_URIS[0]
     authorization_response = request.url
     flow.fetch_token(authorization_response=authorization_response)
     credentials = flow.credentials
+    print("credentials", credentials.refresh_token)
     session['credentials'] = {
         'token': credentials.token,
         'refresh_token': credentials.refresh_token,
@@ -202,8 +245,12 @@ def callback():
         'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
     }
-    
+    print(token_data)
     save_token_to_db(user_id, token_data)
+    save_token_to_firestore(
+        user_id=user_id,
+        token_data=token_data
+    )
 
     return redirect('http://localhost:3000/api/callback?status=success')
 

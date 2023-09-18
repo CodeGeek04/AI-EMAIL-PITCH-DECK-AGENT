@@ -1,0 +1,1 @@
+HERMES_EMAIL = "hermes@elysiuminnovations.ai"
