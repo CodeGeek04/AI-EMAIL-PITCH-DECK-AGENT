@@ -7,22 +7,32 @@ from pptx.util import Inches
 import random 
 import re
 from langchain.prompts import PromptTemplate
-from elysium_prompts.deck_prompts.pitch_deck_prompts import personalized_pitch_deck_prompt
+# from elysium_prompts.deck_prompts.pitch_deck_prompts import personalized_pitch_deck_prompt
 import requests
-
+from elysium_prompts.deck_prompts.pitch_deck_prompts import personalized_pitch_deck_prompt
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 SLIDE_WIDTH = Inches(10)
 SLIDE_HEIGHT = Inches(5.625)
-TEXT_TOP = Inches(0.5)
-TEXT_LEFT = Inches(0.5)
-TEXT_WIDTH = Inches(8)
-TEXT_HEIGHT = Inches(2.5)
-IMAGE_TOP = Inches(3)
-IMAGE_LEFT = Inches(0.5)
-IMAGE_WIDTH = Inches(8)
-IMAGE_HEIGHT = Inches(2.5)
+
+# TEXT_LEFT = Inches(1)  
+# TEXT_WIDTH = Inches(5)
+# # TEXT_HEIGHT = Inches(3)
+
+# # IMAGE_RIGHT = Inches(6.5)
+# # IMAGE_WIDTH = Inches(4) 
+# # IMAGE_HEIGHT = Inches(3)
+
+# TEXT_TOP = Inches(0.5)
+# TEXT_LEFT = Inches(1.5)
+# TEXT_WIDTH = Inches(6)
+# TEXT_HEIGHT = Inches(2.5)
+
+# IMAGE_TOP = Inches(3)
+# IMAGE_LEFT = Inches(0.5)
+# IMAGE_WIDTH = Inches(8)
+# IMAGE_HEIGHT = Inches(2.5)
 
 def generate_image(text):
     response = openai.Image.create(
@@ -34,11 +44,17 @@ def generate_image(text):
     image_data = requests.get(image_url).content
     return image_data
 
-def create_ppt_text(topic, recipient_name, entity_name):
+def create_ppt_text(topic, recipient_name, entity_name, entity_info="", recent_tweets=""):
     prompt = PromptTemplate.from_template(personalized_pitch_deck_prompt)
-    formatted_prompt = prompt.format(topic="", recipient_name=recipient_name, entity_name=entity_name)
+    formatted_prompt = prompt.format(
+        topic="", 
+        recipient_name=recipient_name, 
+        entity_name=entity_name, 
+        entity_info=entity_info,
+        recent_tweets=recent_tweets
+    )
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model="gpt-3.5-turbo-16k",
         messages=[
             {"role": "system", "content": (formatted_prompt)},
             {"role": "user", "content": ("The user wants a presentation about " + topic)}
@@ -358,6 +374,13 @@ def create_ppt_v4(
     file_path = f"deck/GeneratedPresentations/{ppt_name}.pptx"
     return file_path
 
+IMAGE_FOLDER = 'deck/Images' 
+
+def get_random_image():
+  images = os.listdir(IMAGE_FOLDER)
+  image = random.choice(images)
+  return os.path.join(IMAGE_FOLDER, image)
+
 from io import BytesIO
 
 def create_ppt_v5(
@@ -373,8 +396,11 @@ def create_ppt_v5(
 
     # Positioning constants
     TEXT_LEFT = Inches(0.5)
-    TEXT_WIDTH = Inches(5)
+    TEXT_TOP = Inches(3.5) # Moved down 1 inch
+    TEXT_WIDTH = Inches(5) 
     TEXT_HEIGHT = Inches(5)
+
+    # Later when adding text box:
     
     IMAGE_BOTTOM = Inches(3.5)
     IMAGE_RIGHT = Inches(8.5)
@@ -383,6 +409,12 @@ def create_ppt_v5(
 
     with open(text_file, 'r', encoding='utf-8') as f:
         for line_num, line in enumerate(f):
+            if line.startswith('#Title:'):
+                title_content = line.replace('#Title:', '').strip()
+                slide = prs.slides.add_slide(prs.slide_layouts[0])  # Assuming layout 0 is for the title
+                title = slide.shapes.title
+                title.text = title_content
+                continue
             if line.startswith('#Slide:'):
                 slide_count += 1
                 continue
@@ -403,15 +435,22 @@ def create_ppt_v5(
                 title.text = header
 
                 # Add text to the slide
-                txBox = slide.shapes.add_textbox(TEXT_LEFT, Inches(1.5), TEXT_WIDTH, TEXT_HEIGHT)
+                txBox = slide.shapes.add_textbox(TEXT_LEFT, TEXT_TOP, TEXT_WIDTH, TEXT_HEIGHT)
                 tf = txBox.text_frame
                 tf.text = content
+               
 
-                # Add image to the slide
-                image_data = generate_image(content)
-                image_path = f'deck/Images/slide_{slide_count}.png'
-                with open(image_path, 'wb') as image_file:
-                    image_file.write(image_data)
+                # Add image to the slide NOTE: commented out to save time and tokens right now - merk 9/12/23
+                # image_data = generate_image(content)
+                # image_path = f'deck/Images/slide_{slide_count}.png'
+                # with open(image_path, 'wb') as image_file:
+                #     image_file.write(image_data)
+                image_path = get_random_image()
+
+                left = random.randint(1, 7)
+                top = random.randint(1, 5)
+                # slide.shapes.add_picture(image_path, Inches(left), Inches(top))
+                
                 slide.shapes.add_picture(image_path, IMAGE_RIGHT, IMAGE_BOTTOM, IMAGE_WIDTH, IMAGE_HEIGHT)
 
                 # If it's slide 2 and there's a twitter profile image URL, add the image
@@ -423,3 +462,14 @@ def create_ppt_v5(
     prs.save(f'deck/GeneratedPresentations/{ppt_name}.pptx')
     file_path = f"deck/GeneratedPresentations/{ppt_name}.pptx"
     return file_path
+# import uuid
+
+
+
+# if __name__ == "main":
+#     slide_res_filepath = create_ppt_v5(
+#             text_file='slidecontent.txt',
+#             design_number=2,
+#             ppt_name=f'{str(uuid.uuid4())}',
+#             twitter_pfp_img_url='https://pbs.twimg.com/profile_images/1666957819663515648/TOa8kcU1_normal.jpg'
+#         )
