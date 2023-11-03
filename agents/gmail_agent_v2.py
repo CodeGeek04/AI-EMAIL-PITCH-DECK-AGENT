@@ -16,10 +16,10 @@ from agents.toolkits.custom_gmail_toolkit import CustomGmailToolkit
 from elysium_prompts.deck_prompts.pitch_deck_prompts import pitch_content
 from elysium_prompts.email_prompts.email_subject_prompts import elysium_email_subject_template_1
 from elysium_prompts.email_prompts.email_body_prompts_manual import elysium_email_body_template_investor_outreach_v2, elysium_email_body_template_investor_outreach_v3
-
+import openai
 from db.utils import get_token_from_db, save_message_metadata_to_firestore, save_thread_to_firestore, add_message_to_thread
 import json
-import os
+import os, logging
 
 
 
@@ -121,25 +121,44 @@ def _get_gmail_credentials():
 
     return credentials, api_resource
 
-def generate_email_subject(email_body: str, prompt_template):
-    human_message_prompt = HumanMessagePromptTemplate.from_template(
-            template=prompt_template
-        )
-    chat_prompt = ChatPromptTemplate.from_messages([human_message_prompt])
-    with get_openai_callback() as cb:
-        chat = ChatOpenAI(temperature=0.08)
-        result = chat(
-            chat_prompt.format_prompt(
-                email_body=email_body,
-            ).to_messages()
-        )
+def generate_email_subject(email_body: str, prompt_template, custom_prompt=False):
+    if not custom_prompt:
+        human_message_prompt = HumanMessagePromptTemplate.from_template(
+                template=prompt_template
+            )
+        chat_prompt = ChatPromptTemplate.from_messages([human_message_prompt])
+        with get_openai_callback() as cb:
+            chat = ChatOpenAI(temperature=0.08, openai_api_key="YOUR_OPENAI_KEY")
+            result = chat(
+                chat_prompt.format_prompt(
+                    email_body=email_body,
+                ).to_messages()
+            )
 
-        content = result.content
+            content = result.content
 
-        # Hack to get around OpenAI's API returning quotes in the content
-        cleansed = content.replace("\"", "")
+            # Hack to get around OpenAI's API returning quotes in the content
+            cleansed = content.replace("\"", "")
+    else:
+        prompt = '''You are a professional email subject generator. Look carefully at the email body and generate a professional email subject to send to the user.'''
+        messages = [ {"role": "system",
+                        "content": prompt,
+                    },
+                    {
+                        "role": "user",
+                        "content": email_body,
+                    }]
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.4,
+            )
+            return response.choices[0].message["content"], 0
+        except Exception as e:
+            return "ERROR", 0
 
-        return cleansed, cb.total_tokens
+    return cleansed, cb.total_tokens
     
 def generate_email_body(
         sender_name: str,
@@ -147,13 +166,17 @@ def generate_email_body(
         recipient_email: str,
         entity_name: str,
         selected_body_prompt: str,
+        custom_prompt: bool,
         sent_from: str
         
     ):
-    human_message_prompt = HumanMessagePromptTemplate.from_template(
-            template=selected_body_prompt
-        )
-    chat_prompt = ChatPromptTemplate.from_messages([human_message_prompt])
+    if custom_prompt:
+        chat_prompt = custom_prompt
+    else:
+        human_message_prompt = HumanMessagePromptTemplate.from_template(
+                template=selected_body_prompt
+            )
+        chat_prompt = ChatPromptTemplate.from_messages([human_message_prompt])
 
     overall_token_usage_from_body_generation = 0
     print("sender name", sender_name)
@@ -163,21 +186,46 @@ def generate_email_body(
     print("recipient name:", recipient_name)
     
 
-    elysium_demo_site =  "https://AutomationStation.org"
+    elysium_demo_site =  "https://automationstation.org"
     elysium_deck_link = "https://view.storydoc.com/z3D4YevW"
-    prompt = chat_prompt.format_prompt(
-            sent_from=sender_name,
-            recipient_name=recipient_name,
-            entity_name=entity_name,
-            email=recipient_email,
-            link_to_deck=elysium_deck_link,
-            demo_link=elysium_demo_site
-        ).to_messages()
 
-    with get_openai_callback() as cb:
-        chat = ChatOpenAI(temperature=0)
-        result = chat(prompt)
-        overall_token_usage_from_body_generation += cb.total_tokens
+    if not custom_prompt:
+        prompt = chat_prompt.format_prompt(
+                sent_from=sender_name,
+                recipient_name=recipient_name,
+                entity_name=entity_name,
+                email=recipient_email,
+                link_to_deck=elysium_deck_link,
+                demo_link=elysium_demo_site
+            ).to_messages()
+
+        with get_openai_callback() as cb:
+            chat = ChatOpenAI(temperature=0, openai_api_key="YOUR_OPENAI_KEY")
+            result = chat(prompt)
+            overall_token_usage_from_body_generation += cb.total_tokens
+    else:
+        prompt = f'''You are a professional email generator. Look carefully at user's request and generate a professional email to send to the user.
+                    SENT FROM: {sent_from}\n\n
+                    RECIPIENT NAME: {recipient_name}\n\n
+                    USER ENTITY: {entity_name}\n\n
+                    USER EMAIL: {recipient_email}\n\n'''
+        
+        messages = [ {"role": "system", 
+                      "content": prompt,
+                    },
+                    {
+                        "role": "user",
+                        "content": selected_body_prompt,
+                    }]
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.4,
+            )
+            return response.choices[0].message["content"], 0
+        except Exception as e:
+            return "ERROR", 0
     
     return result.content, overall_token_usage_from_body_generation
 
@@ -210,8 +258,12 @@ def send_draft_email_with_attachment(
         mime_message.set_content(email_body)
 
         # Attach the slide to the email
-        content_type, _ = mimetypes.guess_type(slide_res_filepath)
-        main_type, sub_type = content_type.split('/', 1)
+        try:
+            content_type = mimetypes.guess_type(slide_res_filepath)[0]
+            main_type, sub_type = content_type.split('/', 1)
+        except:
+            content_type = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            main_type, sub_type = content_type.split('/', 1)
         
         with open(slide_res_filepath, 'rb') as fp:
             attachment_data = fp.read()
@@ -282,6 +334,9 @@ def send_draft_email_with_attachment_text_wrapped(
 
 
 
+import time
+from googleapiclient.errors import HttpError
+
 def send_draft_email_with_attachment_text_wrapped_v2(
         email_body, 
         email_subject, 
@@ -289,64 +344,81 @@ def send_draft_email_with_attachment_text_wrapped_v2(
         to_email,
         creds,
         service,
-        slide_res_filepath, 
+        slide_res_filepath,
+        max_retries=1,
+        initial_delay=5
 ):
     from constants.hermes_scheduler import HERMES_EMAIL
+
+    # Check if the file is accessible
+    if not os.path.exists(slide_res_filepath):
+        print(f"Error: File '{slide_res_filepath}' does not exist.")
+        return None, None, None
+
+    # Create MIME email
+    mime_message = EmailMessage()
+    mime_message['To'] = to_email
+    mime_message['From'] = sent_from
+    mime_message['Subject'] = email_subject
+    # mime_message['Cc'] = HERMES_EMAIL
+    mime_message.set_content(email_body)
+    mime_message.add_alternative('<p>' + email_body.replace('\n', '<br>') + '</p>', subtype='html')
+
+    # Attach the slide to the email
     try:
-        # Wrap the email body to a consistent line length (e.g., 72 characters)
-        # wrapped_email_body = textwrap.fill(email_body, width=72)
-        print(email_body)
-        # Create MIME email
-        mime_message = EmailMessage()
-        mime_message['To'] = to_email
-        mime_message['From'] = sent_from
-        mime_message['Subject'] = email_subject
-        mime_message['Cc'] = HERMES_EMAIL
-        mime_message.set_content(email_body)
-        # mime_message.set_content(wrapped_email_body)  # for plain text
-        mime_message.add_alternative('<p>' + email_body.replace('\n', '<br>') + '</p>', subtype='html')  # for HTML
-
-
-        # Attach the slide to the email
-        content_type, _ = mimetypes.guess_type(slide_res_filepath)
+        content_type = mimetypes.guess_type(slide_res_filepath)[0]
         main_type, sub_type = content_type.split('/', 1)
-        
-        with open(slide_res_filepath, 'rb') as fp:
-            attachment_data = fp.read()
-        
-        mime_message.add_attachment(attachment_data, maintype=main_type, subtype=sub_type, filename=slide_res_filepath.split('/')[-1])
+    except:
+        content_type = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        main_type, sub_type = content_type.split('/', 1)
 
-        # Encode the MIME message
-        encoded_message = base64.urlsafe_b64encode(mime_message.as_bytes()).decode()
+    with open(slide_res_filepath, 'rb') as fp:
+        attachment_data = fp.read()
 
-        # Create the draft
-        draft = service.users().drafts().create(userId='me', body={'message': {'raw': encoded_message}}).execute()
+    mime_message.add_attachment(attachment_data, maintype=main_type, subtype=sub_type, filename=slide_res_filepath.split('/')[-1])
 
-        # Send the draft
-        response = service.users().drafts().send(userId='me', body={'id': draft['id']}).execute()
+    # Encode the MIME message
+    encoded_message = base64.urlsafe_b64encode(mime_message.as_bytes()).decode()
 
-        # Fetch the full email details to obtain the Message-ID header
-        full_message = service.users().messages().get(userId='me', id=response['id']).execute()
-        print(full_message)
-        message_headers = full_message.get('payload', {}).get('headers', [])
-        print('headers', message_headers)
-        message_id_header = None
+    retries = 0
+    delay = initial_delay
+    print("Sending draft email... (first attempt)")
 
-        for header in message_headers:
-            if header["name"] == "Message-Id":
-                message_id_header = header['value']
-                break
+    while retries < max_retries:
+        try:
+            # Create the draft
+            draft = service.users().drafts().create(userId='me', body={'message': {'raw': encoded_message}}).execute()
 
-        print('response', response)
-        print('Message-Id', message_id_header)
+            # Send the draft
+            response = service.users().drafts().send(userId='me', body={'id': draft['id']}).execute()
 
-        print("Preparing to return values...")
-        return_values = (response['id'], response['threadId'], message_id_header)
-        print("Return values:", return_values)
-        return return_values
-    except Exception as e:
-        print('Error sending draft', e)
-        return None, None, None  
+            # Fetch the full email details to obtain the Message-ID header
+            full_message = service.users().messages().get(userId='me', id=response['id']).execute()
+
+            message_headers = full_message.get('payload', {}).get('headers', [])
+            message_id_header = next((header['value'] for header in message_headers if header["name"] == "Message-Id"), None)
+
+            return response['id'], response['threadId'], message_id_header
+
+        except Exception as e:
+            if retries < max_retries - 1:  # if it's not the last retry attempt
+                print(f"Error sending draft. Retrying in {delay} seconds...")
+                time.sleep(delay)
+                delay *= 2  # double the delay for exponential backoff
+                retries += 1
+            else:
+                print("Max retries reached. Sending draft without attachment")
+                mime_message = EmailMessage()
+                mime_message['To'] = to_email
+                mime_message['From'] = sent_from
+                mime_message['Subject'] = email_subject
+                # mime_message['Cc'] = HERMES_EMAIL
+                mime_message.set_content(email_body)
+                mime_message.add_alternative('<p>' + email_body.replace('\n', '<br>') + '</p>', subtype='html')
+                encoded_message = base64.urlsafe_b64encode(mime_message.as_bytes()).decode()
+                draft = service.users().drafts().create(userId='me', body={'message': {'raw': encoded_message}}).execute()
+                response = service.users().drafts().send(userId='me', body={'id': draft['id']}).execute()
+                return response['id'], response['threadId'], None
 
 
 def run_email_agent_v2(
@@ -354,9 +426,10 @@ def run_email_agent_v2(
     email: str,
     entity: str,
     sent_from: str = "Michael",
-    entity_website: str = None  
+    entity_website: str = None, 
+    custom_prompt = None
 ):
-    from deck.deck_generation import create_ppt_text, create_ppt_v4, create_ppt_v5
+    from deck.deck_generation import create_ppt_text, create_ppt_v5
     from deck.utils import gather_contact_info
     from db.utils import EmailStatus, AgentOwnerStatus
     import datetime
@@ -371,7 +444,7 @@ def run_email_agent_v2(
     print(entity_website)
     contact_info = gather_contact_info(
         email=email,
-        name=name,
+        name=entity if entity else name,
         website=entity_website if entity_website else None
     )
     print("contact info", contact_info)
@@ -386,6 +459,7 @@ def run_email_agent_v2(
         recipient_name=name,
         entity_name=entity,
         entity_info=entity_info,
+        custom_prompt=custom_prompt if custom_prompt else None,
     )
 
     tmp_filepath = "slidecontent.txt"
@@ -401,8 +475,9 @@ def run_email_agent_v2(
         text_file=tmp_filepath,
         design_number=6,
         ppt_name=f'{name}-{entity}-{str(uuid.uuid4())}',
-        twitter_pfp_img_url=twitter_pfp_img_url
+        twitter_pfp_img_url=twitter_pfp_img_url if entity else None,
     )
+    logging.info("Slide res filepath", slide_res_filepath)
     print("generating email body:\n")
     print("sender name", sent_from)
     print("Recipient email:", email)
@@ -418,15 +493,18 @@ def run_email_agent_v2(
         recipient_name=name,
         recipient_email=email,
         entity_name=entity,
-        selected_body_prompt=elysium_email_body_template_investor_outreach_v3,
+        selected_body_prompt=custom_prompt if custom_prompt else elysium_email_body_template_investor_outreach_v3,
+        custom_prompt=True if custom_prompt else False,
         sent_from=email_address
     )
 
     email_subject, tokens_used_for_subject = generate_email_subject(
         email_body=email_body,
-        prompt_template=elysium_email_subject_template_1
+        prompt_template=custom_prompt if custom_prompt else elysium_email_subject_template_1,
+        custom_prompt=True if custom_prompt else False,
     )
     
+    print("Sending email with subject:", email_subject)
     message_id, thread_id, message_id_header = send_draft_email_with_attachment_text_wrapped_v2(
         email_body=email_body,
         email_subject=email_subject,

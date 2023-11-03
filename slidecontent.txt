@@ -1,54 +1,56 @@
-#Title: Empowering Developers to Build Secure, Decentralized AI with Elysium Innovations
+#Title: Elysium OS - Empowering Developers to Build Secure, Decentralized AI
 
 #Slide: 1
 #Header: Table of Contents
 #Content: 
-1. Introduction
-2. The Problem
-3. Elysium's Solution
-4. Our Offerings
-5. Target Customer
-6. Capital Raise
-7. Summary
+1. The Problem
+2. Elysium's Solution
+3. Our Offerings
+4. Target Customer: Developers
+5. Capital Raise
 
 #Slide: 2
-#Header: Greetings, Michael Gruen!
-#Content: Hello Michael Gruen! We are excited to present to you how Elysium Innovations is revolutionizing the AI industry. 
+#Header: The Problem
+#Content:
+- AI Agents are isolated from collaboration with each other and existing business services
+- Fragmentation hinders AI adoption in terms of unity, efficiency, compatibility, entry, and security
+- Lack of unity leads to disjointed user experiences and operational inefficiency
+- Limited cross-compatibility and barriers to entry discourage widespread adoption
+- Inconsistent security protocols raise security concerns
 
 #Slide: 3
-#Header: The Problem
-#Content: 
-- AI Agents are isolated and lack collaboration with each other and existing services.
-- Fragmentation hinders AI adoption due to unity, efficiency, compatibility, entry, and security issues.
+#Header: Elysium's Solution
+#Content:
+- Seamless User Experience: Customize agent personalities and settings for a tailored AI experience
+- Dynamic Ecosystem Integration: Integrate multiple AI agents for efficient task management
+- Unified AI Network: Sync effortlessly with existing business systems for smooth transitions
+- Secure and Trustworthy Platform: Blend of decentralized and conventional security protocols for robust data protection
 
 #Slide: 4
-#Header: Elysium's Solution
-#Content: 
-- Seamless User Experience: Customize agent personalities and settings for a tailored AI experience.
-- Dynamic Ecosystem Integration: Integrate multiple AI agents for efficient task management.
-- Unified AI Network: Sync effortlessly with existing business systems for smooth transitions.
-- Secure and Trustworthy Platform: Blend of decentralized and conventional security protocols for robust data protection.
+#Header: Our Offerings
+#Content:
+1. Elysium OS - web and hologram on PC and Mac
+- AI Personal Butler or Enterprise Chief of Staff (COS)
+- Unified portal for managing AI agents with seamless interaction, customization, and powerful capabilities
+
+2. Automation Station - The Central Hub for Sourcing and Deploying AI Agents
+- Streamlines AI Agent recruitment and deployment
+- Dynamic marketplace for task assignment, collaboration, and business integration
+- Manages agent payments, eliminating API key hassles
 
 #Slide: 5
-#Header: Our Offerings
-#Content: 
-- Elysium OS: Web and hologram platform for AI Butler or Chief of Staff.
-- Automation Station: Central hub for sourcing and deploying AI agents. Simplifies task assignment, collaboration, and business integration.
+#Header: Target Customer: Developers
+#Content:
+- Shared Problem We Solve: AI Agents lack accessibility and connectivity to other agents and existing business services
+- Elysium as a Value-Added Catalyst: Provides a single intuitive entry point for consumers to use their technology via Elysium OS and platforming all their AI Agents in one place via Automation Station
 
 #Slide: 6
-#Header: Target Customer
-#Content: 
-- Developers facing the problem of inaccessible and disconnected AI setups.
-- Elysium provides a single intuitive entry point for consumers to use their technology and a platform for transactions between agents and businesses.
-
-#Slide: 7
 #Header: Capital Raise
-#Content: 
-- Elysium is raising $3,500,000 in seed funding.
-- Purpose of fundraising: significant hirings, growth via new marketing channels, and full platform development.
-
-#Slide: 8
-#Header: Summary
-#Content: Elysium Innovations empowers developers to build secure, decentralized AI tailored to individual needs. With Elysium OS and Automation Station, we provide a unified platform for seamless AI integration and collaboration. Join us in revolutionizing the AI industry!
+#Content:
+- Raising $3,500,000 in our Seed round
+- Purpose of Fundraising:
+  1. Significant hirings: UX/UI Designers, OS Lead, Backend & Support Devs
+  2. Growth via new marketing channels, ready resource for enterprise fulfillment, and scaling audits
+  3. Development: Full build of our platform/public launch
 
 #Slide: END

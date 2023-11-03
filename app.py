@@ -2,7 +2,7 @@ from flask import Flask, redirect, request, session, url_for, jsonify
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
-import os
+import os, logging
 import json
 from datetime import datetime
 import uuid  
@@ -106,8 +106,37 @@ def upload():
 
     return "Successfully uploaded and processed the data!"
 
-@app.route('/trigger-email-agent', methods=['POST'])
-def trigger_email_agent():
+@app.route('/trigger-email-agent-prompt', methods=['POST'])
+def trigger_email_agent_prompt():
+    from agents.gmail_agent import run_email_agent
+    from agents.gmail_agent_v2 import run_email_agent_v2
+
+    # Extract details from the request
+    name = request.form.get('name')
+    email = request.form.get('email')
+    twitter_id = request.form.get('twitter_id', None)
+    personal_website = request.form.get('personal_website', None)
+    custom_prompt = request.form.get('custom_prompt', None)
+
+    # Check if name and email are provided
+    if not name or not email:
+        return jsonify({"status": "error", "message": "Name and Email are required fields"}), 400
+
+    print("Running email agent for: ", name, email)
+    logging.info("Running email agent for: ", name, email)
+    run_email_agent_v2(
+        name=name,
+        email=email,
+        entity=twitter_id,
+        sent_from="Michael",
+        entity_website=personal_website,
+        custom_prompt=custom_prompt
+    )
+        
+    return jsonify({"status": "success", "message": "Emailer messaged successfully"})
+
+@app.route('/trigger-email-agent-csv', methods=['POST'])
+def trigger_email_agent_csv():
     from agents.gmail_agent import run_email_agent
     from agents.gmail_agent_v2 import run_email_agent_v2
     file = request.files['csv']
@@ -135,6 +164,7 @@ def trigger_email_agent():
         entity = contact['entity']
         website = contact['website'] 
         print('contact', contact)
+        print("Running email agent for: ", name, email, entity)
         run_email_agent_v2(
             name=name,
             email=email,
@@ -144,7 +174,6 @@ def trigger_email_agent():
         )
         
     return jsonify({"status": "success", "message": "Emailer messaged successfully"})
-
 
 @app.route('/trigger-scheduler',methods=['POST'])
 def trigger_scheduler():
@@ -175,13 +204,21 @@ def process_scheduled_messages():
     return jsonify({"message": "Processing completed successfully"}), 200
 
 
-CLIENT_ID = os.getenv('EMAIL_ASSISTANT_CLIENT_ID')
-CLIENT_SECRET = os.getenv('EMAIL_ASSISTANT_CLIENT_SECRET')
+# CLIENT_ID = os.getenv('EMAIL_ASSISTANT_CLIENT_ID')
+# CLIENT_SECRET = os.getenv('EMAIL_ASSISTANT_CLIENT_SECRET')
+CLIENT_ID = "487194164390-bommn244g8rrnseo207pcrhg9f8udou6.apps.googleusercontent.com"
+CLIENT_SECRET = "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"
 REDIRECT_URIS = ['http://localhost:8080/callback','http://localhost:8080']
 AUTH_URI = 'https://accounts.google.com/o/oauth2/auth'
 TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
 USER_INFO = 'https://www.googleapis.com/userinfo/v2/me'
-SCOPE = ['https://mail.google.com/', 'https://www.googleapis.com/auth/calendar']
+SCOPE = [
+    'https://mail.google.com/',
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email'
+]
 
 @app.route('/login')
 def login():
@@ -268,5 +305,6 @@ def profile():
 def index():
     return 'Welcome! <a href="/login">Login with Google</a>'
 
+port = int(os.environ.get("PORT", 8080))
 if __name__ == '__main__':
-    app.run(port=8080, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True)
